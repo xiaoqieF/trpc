@@ -11,6 +11,8 @@
 #include "trpc/rpc_result.hpp"
 
 namespace trpc {
+static constexpr int DEFAULT_TIMEOUT = 5;
+
 class RpcClient : asio::noncopyable {
 public:
     RpcClient(std::string host, unsigned short port)
@@ -73,26 +75,19 @@ public:
         }
     }
 
-    template <size_t TIMEOUT, typename T = void, typename... Args>
-    std::enable_if_t<std::is_void_v<T>, T> call(const std::string& rpc_name, Args&&... args) {
+    template <typename T = void, size_t TIMEOUT = DEFAULT_TIMEOUT, typename... Args>
+    T call(const std::string& rpc_name, Args&&... args) {
         auto future_result = async_call(rpc_name, std::forward<Args>(args)...);
         auto status = future_result.wait_for(std::chrono::milliseconds(TIMEOUT));
         if (status == std::future_status::timeout || status == std::future_status::deferred) {
             CLOG_ERROR("future timeout or deferred");
             throw std::out_of_range("future timeout or deferred");
         }
-        future_result.get().check_result();
-    }
-
-    template <size_t TIMEOUT, typename T = void, typename... Args>
-    std::enable_if_t<!std::is_void_v<T>, T> call(const std::string& rpc_name, Args&&... args) {
-        auto future_result = async_call(rpc_name, std::forward<Args>(args)...);
-        auto status = future_result.wait_for(std::chrono::milliseconds(TIMEOUT));
-        if (status == std::future_status::timeout || status == std::future_status::deferred) {
-            CLOG_ERROR("future timeout or deferred");
-            throw std::out_of_range("future timeout or deferred");
+        if constexpr (std::is_void_v<T>) {
+            future_result.get().check_result();
+        } else {
+            return future_result.get().template as<T>();
         }
-        return future_result.get().template as<T>();
     }
 
     template <typename... Args>

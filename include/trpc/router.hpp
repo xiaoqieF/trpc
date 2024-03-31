@@ -47,6 +47,7 @@ public:
         };
     }
 
+    // 根据 key 找到相应函数并调用
     std::string route(uint32_t key, std::string_view args) {
         std::string result;
         auto it = func_map_.find(key);
