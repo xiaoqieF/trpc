@@ -48,6 +48,8 @@ public:
         return wait_connection(timeout);
     }
 
+    bool has_connected() const { return has_connected_; }
+
     bool wait_connection(size_t timeout) {
         if (has_connected_) {
             return true;
